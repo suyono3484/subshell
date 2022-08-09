@@ -17,6 +17,9 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::path::Path;
+use std::io::ErrorKind;
 use std::error::Error;
 
 mod env_unicode;
@@ -39,13 +42,43 @@ pub enum EnvInput {
 }
 
 pub trait SubShell {
-    fn exec(&self);
+    fn exec(&self) -> Result<(), Box<dyn Error>>;
     fn get_all_env(&self) -> Result<EnvResult, Box<dyn Error>>;
     fn get_env(&self, q: EnvQuery) -> Result<EnvResult, Box<dyn Error>>;
+    fn get_home_env(&self) -> Result<String, Box<dyn Error>>;
     fn set_env(&mut self, input: EnvInput) -> Result<(), Box<dyn Error>>;
     fn apply_environment(&self, profile_path :String) -> Result<(), Box<dyn Error>>;
 }
 
 pub fn prepare_zsh() -> Result<Box<dyn SubShell>, Box<dyn Error>> {
     subzsh::prepare()
+}
+
+pub fn apply_profile(s :&dyn SubShell, profile_name :String) -> Result<(), Box<dyn Error>> {
+    let home = s.get_home_env()?;
+    let base_dir = format!("{}/.subshell", home);
+    let profile_dir = format!("{}/{}", &base_dir, profile_name);
+    match fs::metadata(Path::new(&base_dir)) {
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => {
+                fs::create_dir(Path::new(&base_dir))?;
+                fs::create_dir(Path::new(&profile_dir))?;
+            },
+            _other_error => {
+                return Err(Box::new(e));
+            },
+        },
+        _ok_result=> {},
+    }
+
+    fs::metadata(Path::new(&profile_dir))?;
+    s.apply_environment(profile_dir)?;
+    Ok(())
+}
+
+pub fn list_profiles(s :&dyn SubShell) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut result :Vec<String> = Vec::new();
+
+
+    Ok(result)
 }

@@ -16,53 +16,20 @@
  */
 
 use std::borrow::Borrow;
-use std::env;
 use std::error::Error;
-use subshell::{EnvQuery, SubShell, EnvResult};
-use std::fs;
-use std::path::Path;
-use std::io::ErrorKind;
+use subshell;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let p = subshell::prepare_zsh();
     match p {
         Ok(q) => {
-            apply_profile(q.borrow(), String::from("default"))?;
-            q.exec();
+            subshell::apply_profile(q.borrow(), String::from("default"))?;
+            q.exec()?;
         }
         Err(e) => {
             println!("error {:?}", e);
         }
     }
 
-    Ok(())
-}
-
-fn apply_profile(s :&dyn SubShell, profile_name :String) -> Result<(), Box<dyn Error>> {
-    let home :String ;
-    match s.get_env(EnvQuery::Single(String::from("HOME")))? {
-        EnvResult::Single(h) => {
-            home = h;
-        }
-        EnvResult::Multi(_m) => panic!("invalid return value"),
-    }
-
-    let base_dir = format!("{}/.subshell", home);
-    let profile_dir = format!("{}/{}", &base_dir, profile_name);
-    match fs::metadata(Path::new(&base_dir)) {
-        Err(e) => match e.kind() {
-            ErrorKind::NotFound => {
-                fs::create_dir(Path::new(&base_dir))?;
-                fs::create_dir(Path::new(&profile_dir))?;
-            },
-            _other_error => {
-                return Err(Box::new(e));
-            },
-        },
-        _ok_result=> {},
-    }
-
-    fs::metadata(Path::new(&profile_dir))?;
-    s.apply_environment(profile_dir)?;
     Ok(())
 }

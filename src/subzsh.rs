@@ -23,6 +23,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::path::Path;
 use std::io::ErrorKind;
+use exec;
 
 #[derive(Debug)]
 pub struct SubZsh {
@@ -31,8 +32,9 @@ pub struct SubZsh {
 }
 
 impl SubShell for SubZsh {
-    fn exec(&self) {
-        todo!()
+    fn exec(&self) -> Result<(), Box<dyn Error>>{
+        let err = exec::Command::new(&self.path).arg("-l").exec();
+        Err(Box::new(err))
     }
 
     fn get_all_env(&self) -> Result<EnvResult, Box<dyn Error>> {
@@ -42,8 +44,8 @@ impl SubShell for SubZsh {
     fn get_env(&self, q: EnvQuery) -> Result<EnvResult, Box<dyn Error>> {
         match q {
             EnvQuery::Single(name) => {
-                let strname :&str = &name;
-                match self.env.get(strname) {
+                let str_name:&str = &name;
+                match self.env.get(str_name) {
                     Some(x) => Ok(EnvResult::Single(String::from(x))),
                     None => Err(Box::new(env_unicode::EnvError::NotFound(name))),
                 }
@@ -72,6 +74,15 @@ impl SubShell for SubZsh {
         }
     }
 
+    fn get_home_env(&self) -> Result<String, Box<dyn Error>> {
+        match self.get_env(EnvQuery::Single(String::from("HOME")))? {
+            EnvResult::Single(h) => {
+                return Ok(h);
+            }
+            EnvResult::Multi(_m) => panic!("invalid state"),
+        }
+    }
+
     fn set_env(&mut self, input: EnvInput) -> Result<(), Box<dyn Error>> {
         match input {
             EnvInput::KeyVal(key, val) => {
@@ -92,13 +103,7 @@ impl SubShell for SubZsh {
             env::set_var(&key, &val);
         }
 
-        let home :String;
-        match self.get_env(EnvQuery::Single(String::from("HOME")))? {
-            EnvResult::Single(h) => {
-                home = h;
-            },
-            EnvResult::Multi(_m) => panic!("invalid state"),
-        }
+        let home = self.get_home_env()?;
 
         for f in [".zshenv", ".zprofile", ".zshrc", ".zlogin", ".zlogout"] {
             let profile_file = format!("{}/{}", &profile_path, f);
