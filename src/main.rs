@@ -18,12 +18,17 @@
 use std::borrow::Borrow;
 use std::error::Error;
 use subshell;
+use subshell::SubShell;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let p = subshell::prepare_zsh();
     match p {
         Ok(q) => {
-            subshell::apply_profile(q.borrow(), String::from("default"))?;
+            subshell::profile::prepare(
+                format!("{}/{}", q.get_home_env()?, String::from(".subshell")),
+                Some(q.borrow()))?
+                .set_profile_name(String::from("default"))
+                .apply()?;
             q.exec()?;
         }
         Err(e) => {

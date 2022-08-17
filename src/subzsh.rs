@@ -15,7 +15,7 @@
  *
  */
 
-use crate::{path, env_unicode, EnvInput, EnvQuery, EnvResult, SubShell};
+use crate::{path, env_unicode, EnvInput, EnvQuery, EnvResult, SubShell, Profile};
 use std::collections::HashMap;
 use std::{env, fs};
 use std::error::Error;
@@ -98,7 +98,7 @@ impl SubShell for SubZsh {
         }
     }
 
-    fn apply_environment(&self, profile_path :String) -> Result<(), Box<dyn Error>> {
+    fn apply_environment(&self, profile : &dyn Profile) -> Result<(), Box<dyn Error>> {
         for (key, val) in &self.env {
             env::set_var(&key, &val);
         }
@@ -106,13 +106,13 @@ impl SubShell for SubZsh {
         let home = self.get_home_env()?;
 
         for f in [".zshenv", ".zprofile", ".zshrc", ".zlogin", ".zlogout"] {
-            let profile_file = format!("{}/{}", &profile_path, f);
-            match fs::metadata(Path::new(&profile_file)) {
+            let profile_dir = format!("{}/{}", profile.profile_path()?, f);
+            match fs::metadata(Path::new(&profile_dir)) {
                 Err(e) => match e.kind() {
                     ErrorKind::NotFound => {
                         let home_file = format!("{}/{}", &home, f);
                         if let Ok(_meta) = fs::metadata(Path::new(&home_file)) {
-                            fs::copy(&home_file, &profile_file)?;
+                            fs::copy(&home_file, &profile_dir)?;
                         }
                     },
                     _other_error => return Err(Box::new(e)),
@@ -121,7 +121,7 @@ impl SubShell for SubZsh {
             }
         }
 
-        env::set_var("ZDOTDIR", &profile_path);
+        env::set_var("ZDOTDIR", profile.profile_path()?);
         Ok(())
     }
 }

@@ -25,6 +25,8 @@ use std::error::Error;
 mod env_unicode;
 mod path;
 mod subzsh;
+mod error;
+pub mod profile;
 
 pub enum EnvQuery {
     Single(String),
@@ -47,38 +49,17 @@ pub trait SubShell {
     fn get_env(&self, q: EnvQuery) -> Result<EnvResult, Box<dyn Error>>;
     fn get_home_env(&self) -> Result<String, Box<dyn Error>>;
     fn set_env(&mut self, input: EnvInput) -> Result<(), Box<dyn Error>>;
-    fn apply_environment(&self, profile_path :String) -> Result<(), Box<dyn Error>>;
+    fn apply_environment(&self, profile : &dyn Profile) -> Result<(), Box<dyn Error>>;
+}
+
+pub trait Profile {
+    fn exist(&self) -> Result<&dyn Profile, Box<dyn Error>>;
+    fn set_profile_name(&mut self, name : String) -> &mut dyn Profile;
+    fn profile_path(&self) -> Result<String, Box<dyn Error>>;
+    fn list(&self) -> Result<Vec<String>, Box<dyn Error>>;
+    fn apply(&self) -> Result<(), Box<dyn Error>>;
 }
 
 pub fn prepare_zsh() -> Result<Box<dyn SubShell>, Box<dyn Error>> {
     subzsh::prepare()
-}
-
-pub fn apply_profile(s :&dyn SubShell, profile_name :String) -> Result<(), Box<dyn Error>> {
-    let home = s.get_home_env()?;
-    let base_dir = format!("{}/.subshell", home);
-    let profile_dir = format!("{}/{}", &base_dir, profile_name);
-    match fs::metadata(Path::new(&base_dir)) {
-        Err(e) => match e.kind() {
-            ErrorKind::NotFound => {
-                fs::create_dir(Path::new(&base_dir))?;
-                fs::create_dir(Path::new(&profile_dir))?;
-            },
-            _other_error => {
-                return Err(Box::new(e));
-            },
-        },
-        _ok_result=> {},
-    }
-
-    fs::metadata(Path::new(&profile_dir))?;
-    s.apply_environment(profile_dir)?;
-    Ok(())
-}
-
-pub fn list_profiles(s :&dyn SubShell) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut result :Vec<String> = Vec::new();
-
-
-    Ok(result)
 }
